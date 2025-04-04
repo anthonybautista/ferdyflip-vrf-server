@@ -152,6 +152,52 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
+# VPC Endpoints for AWS services
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.app_sg.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.app_sg.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.app_sg.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.app_sg.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.app_sg.id]
+  private_dns_enabled = true
+}
+
 # Read task definition files
 locals {
   primary_task_def = templatefile("${path.module}/task-def-1.json", {
@@ -276,7 +322,9 @@ resource "aws_iam_role_policy" "github_actions_policy" {
         Effect = "Allow"
         Action = [
           "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition"
+          "ecs:RegisterTaskDefinition",
+          "ecs:DescribeServices",
+          "ecs:UpdateService"
         ]
         Resource = "*"
       },
