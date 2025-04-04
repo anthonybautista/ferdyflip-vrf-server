@@ -14,7 +14,7 @@ from web3.contract import Contract
 from web3.contract.contract import ContractFunction, ContractEvent
 from web3.types import Nonce, TxParams, TxReceipt, EventData
 from web3_client.abi import VRF_ABI, VRF_V25_ABI
-from python.utils.logger import Logger
+from utils.logger import Logger
 
 logger = Logger().get_logger()
 

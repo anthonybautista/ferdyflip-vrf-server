@@ -6,7 +6,7 @@ from typing import Optional
 from web3.types import EventData
 from utils.discord import send_hook
 from web3_client.client import ChainVrfClient
-from python.utils.logger import Logger
+from utils.logger import Logger
 
 logger = Logger().get_logger()
 

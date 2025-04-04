@@ -1,6 +1,6 @@
 from typing import Optional
 from discord_webhook import DiscordWebhook
-from python.utils.logger import Logger
+from .logger import Logger
 
 logger = Logger().get_logger()
 
