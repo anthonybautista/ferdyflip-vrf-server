@@ -1,0 +1,97 @@
+name: Deploy Fulfillment Service to AWS ECS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'python/**'  # Only trigger on changes to python code
+      - 'Dockerfile'
+      - '.github/workflows/**'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: us-east-1                                           # Change to your preferred region
+  ECR_REPOSITORY: fulfillment-service                             # Name for your ECR repository
+  ECS_CLUSTER: fulfillment-cluster                                # Name for your ECS cluster
+  ECS_SERVICE_PRIMARY: fulfillment-service-primary                # Primary service
+  ECS_SERVICE_BACKUP: fulfillment-service-backup                  # Backup service (with delayed processing)
+  ECS_TASK_DEFINITION_PRIMARY: infrastructure/task-def-1.json     # Path to primary task definition file
+  ECS_TASK_DEFINITION_BACKUP: infrastructure/task-def-2.json      # Path to backup task definition file
+  CONTAINER_NAME: fulfillment-container                           # Container name in the task definition
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # This is needed for OIDC authentication
+      contents: read    # This is needed to read repository content
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Prepare task definitions
+        run: |
+          mkdir -p .github/temp
+          cp ${{ env.ECS_TASK_DEFINITION_PRIMARY }} .github/temp/task-def-primary.json
+          cp ${{ env.ECS_TASK_DEFINITION_BACKUP }} .github/temp/task-def-backup.json
+          sed -i "s/\${AWS_ACCOUNT_ID}/${{ secrets.AWS_ACCOUNT_ID }}/g" .github/temp/task-def-primary.json
+          sed -i "s/\${AWS_ACCOUNT_ID}/${{ secrets.AWS_ACCOUNT_ID }}/g" .github/temp/task-def-backup.json
+          echo "ECS_TASK_DEFINITION_PRIMARY=.github/temp/task-def-primary.json" >> $GITHUB_ENV
+          echo "ECS_TASK_DEFINITION_BACKUP=.github/temp/task-def-backup.json" >> $GITHUB_ENV
+
+      - name: Fill in the new image ID in the primary task definition
+        id: task-def-primary
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION_PRIMARY }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Fill in the new image ID in the backup task definition
+        id: task-def-backup
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION_BACKUP }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy primary service to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-primary.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_PRIMARY }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Deploy backup service to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-backup.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_BACKUP }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

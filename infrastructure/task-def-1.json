@@ -1,0 +1,73 @@
+{
+  "family": "fulfillment-service-primary",
+  "networkMode": "awsvpc",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "fulfillment-container",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/fulfillment-service:latest",
+      "essential": true,
+      "command": ["python", "python/server.py"],
+      "environment": [
+        {
+          "name": "SERVICE_TYPE",
+          "value": "primary"
+        },
+        {
+          "name": "ENVIRONMENT",
+          "value": "production"
+        },
+        {
+          "name": "DELAY_BLOCKS",
+          "value": "0"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "CHAIN_ID",
+          "valueFrom": "arn:aws:ssm:us-east-1:${AWS_ACCOUNT_ID}:parameter/fulfillment/CHAIN_ID"
+        },
+        {
+          "name": "OBFUSCATED_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:fulfillment/OBFUSCATED_KEY:key::"
+        },
+        {
+          "name": "VRF_ADDRESS",
+          "valueFrom": "arn:aws:ssm:us-east-1:${AWS_ACCOUNT_ID}:parameter/fulfillment/VRF_ADDRESS"
+        },
+        {
+          "name": "ALERT_HOOK_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:${AWS_ACCOUNT_ID}:parameter/fulfillment/ALERT_HOOK_URL"
+        },
+        {
+          "name": "FULFILLMENT_HOOK_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:${AWS_ACCOUNT_ID}:parameter/fulfillment/FULFILLMENT_HOOK_URL"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/fulfillment-service-primary",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "cpu": 256,
+      "memory": 512,
+      "memoryReservation": 256
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512"
+}
