@@ -162,5 +162,6 @@ cython_debug/
 .env*
 Deployment.md
 
+# unnecessary Terraform files
 infrastructure/terraform.*
 infrastructure/.terraform*
