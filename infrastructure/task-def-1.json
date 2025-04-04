@@ -8,7 +8,7 @@
       "name": "fulfillment-container",
       "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/fulfillment-service:latest",
       "essential": true,
-      "command": ["python", "python/server.py"],
+      "command": ["python", "server.py"],
       "environment": [
         {
           "name": "SERVICE_TYPE",

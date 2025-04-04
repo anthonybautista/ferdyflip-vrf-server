@@ -1,5 +1,6 @@
 import random
 import secrets
+from typing import Tuple, Any
 
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
@@ -20,9 +21,10 @@ def shuffle_charset() -> str:
     return ''.join(char_list)
 
 
-def new_account() -> LocalAccount:
+def new_account() -> tuple[str, Any]:
     """Helper to create a new account for testing purposes."""
-    return Account.from_key("0x" + secrets.token_hex(32))
+    key = secrets.token_hex(32)
+    return key, Account.from_key("0x" + key)
 
 
 def obfuscate_string(key: str) -> str:
