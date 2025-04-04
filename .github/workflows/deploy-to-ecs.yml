@@ -9,6 +9,10 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:  # Allow manual triggering
 
+permissions:
+  id-token: write   # Required for OIDC authentication
+  contents: read    # Required to check out the repository
+
 env:
   AWS_REGION: us-east-1                                           # Change to your preferred region
   ECR_REPOSITORY: fulfillment-service                             # Name for your ECR repository
