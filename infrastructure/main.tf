@@ -149,6 +149,32 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
+# Add permissions to the task role
+resource "aws_iam_policy" "task_role_secrets_policy" {
+  name        = "task-role-secrets-policy"
+  description = "Allow task to access secrets directly"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:${var.account_id}:secret:fulfillment/OBFUSCATED_KEY*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "task_role_secrets_policy_attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.task_role_secrets_policy.arn
+}
+
 # Use default VPC and subnets for simplicity
 data "aws_vpc" "default" {
   default = true
