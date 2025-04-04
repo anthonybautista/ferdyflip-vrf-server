@@ -5,6 +5,7 @@ provider "aws" {
 # ECR Repository
 resource "aws_ecr_repository" "app_repo" {
   name                 = "fulfillment-service"
+  force_delete         = true
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -324,7 +325,7 @@ resource "aws_ecs_service" "primary_service" {
   network_configuration {
     subnets          = data.aws_subnets.default.ids
     security_groups  = [aws_security_group.app_sg.id]
-    assign_public_ip = false  # No need for public IP since it's a listener
+    assign_public_ip = true
   }
 }
 
@@ -339,7 +340,7 @@ resource "aws_ecs_service" "backup_service" {
   network_configuration {
     subnets          = data.aws_subnets.default.ids
     security_groups  = [aws_security_group.app_sg.id]
-    assign_public_ip = false  # No need for public IP since it's a listener
+    assign_public_ip = true
   }
 }
 
