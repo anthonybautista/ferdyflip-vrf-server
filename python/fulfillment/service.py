@@ -19,6 +19,7 @@ class Fulfiller(object):
 
     def __init__(self, client: ChainVrfClient, alert_url: Optional[str], fulfillment_url: Optional[str],
                  delay_blocks: int, poll_delay: float):
+        logger.info(f"DELAY_BLOCKS: {delay_blocks}")
         self.client = client
         self.alert_url = alert_url
         self.fulfillment_url = fulfillment_url

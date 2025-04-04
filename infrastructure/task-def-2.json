@@ -20,7 +20,7 @@
         },
         {
           "name": "DELAY_BLOCKS",
-          "value": "1"
+          "value": "5"
         }
       ],
       "secrets": [

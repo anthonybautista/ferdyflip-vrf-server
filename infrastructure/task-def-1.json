@@ -17,10 +17,6 @@
         {
           "name": "ENVIRONMENT",
           "value": "production"
-        },
-        {
-          "name": "DELAY_BLOCKS",
-          "value": "0"
         }
       ],
       "secrets": [
