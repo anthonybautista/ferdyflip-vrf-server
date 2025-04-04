@@ -105,6 +105,32 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_secrets_policy" {
   policy_arn = aws_iam_policy.secrets_access_policy.arn
 }
 
+# Explicit secrets policy for the task execution role
+resource "aws_iam_policy" "explicit_secrets_policy" {
+  name        = "explicit-secrets-policy"
+  description = "Explicit permissions for accessing specific secrets"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:${var.account_id}:secret:fulfillment/OBFUSCATED_KEY*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "explicit_secrets_policy_attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = aws_iam_policy.explicit_secrets_policy.arn
+}
+
 # ECS Task Role - For permissions the running container needs
 resource "aws_iam_role" "ecs_task_role" {
   name = "ecsTaskRole"
@@ -152,13 +178,34 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
+# Dedicated security group for VPC endpoints
+resource "aws_security_group" "vpc_endpoint_sg" {
+  name        = "vpc-endpoint-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 # VPC Endpoints for AWS services
 resource "aws_vpc_endpoint" "secretsmanager" {
   vpc_id            = data.aws_vpc.default.id
   service_name      = "com.amazonaws.${var.aws_region}.secretsmanager"
   vpc_endpoint_type = "Interface"
   subnet_ids        = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
 }
 
@@ -167,7 +214,7 @@ resource "aws_vpc_endpoint" "ssm" {
   service_name      = "com.amazonaws.${var.aws_region}.ssm"
   vpc_endpoint_type = "Interface"
   subnet_ids        = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
 }
 
@@ -176,7 +223,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   service_name      = "com.amazonaws.${var.aws_region}.ecr.api"
   vpc_endpoint_type = "Interface"
   subnet_ids        = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
 }
 
@@ -185,7 +232,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   service_name      = "com.amazonaws.${var.aws_region}.ecr.dkr"
   vpc_endpoint_type = "Interface"
   subnet_ids        = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
 }
 
@@ -194,8 +241,15 @@ resource "aws_vpc_endpoint" "logs" {
   service_name      = "com.amazonaws.${var.aws_region}.logs"
   vpc_endpoint_type = "Interface"
   subnet_ids        = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id          = data.aws_vpc.default.id
+  service_name    = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [data.aws_vpc.default.main_route_table_id]
 }
 
 # Read task definition files
@@ -215,8 +269,8 @@ resource "aws_ecs_task_definition" "primary_task" {
   container_definitions    = jsonencode(jsondecode(local.primary_task_def).containerDefinitions)
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = "512"   # Increased from 256
+  memory                   = "1024"  # Increased from 512
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 }
@@ -227,8 +281,8 @@ resource "aws_ecs_task_definition" "backup_task" {
   container_definitions    = jsonencode(jsondecode(local.backup_task_def).containerDefinitions)
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = "512"   # Increased from 256
+  memory                   = "1024"  # Increased from 512
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 }
@@ -327,16 +381,6 @@ resource "aws_iam_role_policy" "github_actions_policy" {
           "ecs:UpdateService"
         ]
         Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecs:UpdateService"
-        ]
-        Resource = [
-          "arn:aws:ecs:${var.aws_region}:${var.account_id}:service/${aws_ecs_cluster.main.name}/${aws_ecs_service.primary_service.name}",
-          "arn:aws:ecs:${var.aws_region}:${var.account_id}:service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backup_service.name}"
-        ]
       },
       {
         Effect = "Allow"
