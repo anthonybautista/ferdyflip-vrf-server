@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import os
 from typing import Optional
-
 from dotenv import dotenv_values
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 from web3 import Web3
-
 from utils.keys import deobfuscate_string
 from web3_client.client import ChainVrfClient, MultisendChainVrfClient
 from web3_client.endpoints import CHAIN_ID_TO_RPC, make_web3_for_chain_id, CHAIN_ID_TO_MAX_GAS, \
     make_web3_list_for_chain_id
+from python.utils.logger import Logger
 
+logger = Logger().get_logger()
 
 class Config(object):
     """Load config from dotfiles with an env override."""
@@ -37,7 +37,7 @@ class Config(object):
             raise ValueError('Expected OBFUSCATED_KEY to be set')
 
         try:
-            print(f'Loaded {self.account.address}')
+            logger.info(f'Loaded {self.account.address}')
         except Exception as ex:
             raise ValueError('Expected OBFUSCATED_KEY to resolve to an account') from ex
 

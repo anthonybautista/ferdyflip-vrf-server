@@ -1,9 +1,8 @@
 import concurrent
 import time
+import web3.logs
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import TypedDict, Optional
-
-import web3.logs
 from eth_account.datastructures import SignedTransaction
 from eth_account.signers.local import LocalAccount
 from eth_typing import ChecksumAddress, BlockNumber
@@ -14,9 +13,10 @@ from web3 import Web3
 from web3.contract import Contract
 from web3.contract.contract import ContractFunction, ContractEvent
 from web3.types import Nonce, TxParams, TxReceipt, EventData
-
 from web3_client.abi import VRF_ABI, VRF_V25_ABI
+from python.utils.logger import Logger
 
+logger = Logger().get_logger()
 
 class ChainClient(object):
     """Web3 client.
@@ -213,7 +213,7 @@ class MultisendChainVrfClient(ChainVrfClient):
         done, timed_out = concurrent.futures.wait(tx_futures, timeout=self.send_timeout_sec)
         took = round(time.time() - start, 3)
         accepted = [x for x in done if x.exception() is None]
-        print(f'Sent {len(tx_futures)} requests in {took};'
+        logger.info(f'Sent {len(tx_futures)} requests in {took};'
               f' {len(done)} done  {len(accepted)} accepted {len(timed_out)} timed out')
 
         if not accepted and done:

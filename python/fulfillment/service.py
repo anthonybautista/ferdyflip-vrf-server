@@ -3,11 +3,12 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-
 from web3.types import EventData
-
 from utils.discord import send_hook
 from web3_client.client import ChainVrfClient
+from python.utils.logger import Logger
+
+logger = Logger().get_logger()
 
 
 class Fulfiller(object):
@@ -35,7 +36,7 @@ class Fulfiller(object):
         self.fulfilled_ids = set()
 
     def start_scan(self, run_from_block: int):
-        print("Starting scan from", run_from_block)
+        logger.info(f"Starting scan from {run_from_block}")
         last_block = run_from_block
 
         # We don't need to poll as quickly on the backup fulfiller. This conserves credits on paid plans =(
@@ -60,9 +61,9 @@ class Fulfiller(object):
                 # up when it was fetched from Base.
                 scan_end_block = min(scan_block + 1900, current_block)
 
-                print(f"scanning from {scan_block} to {scan_end_block}")
+                logger.info(f"scanning from {scan_block} to {scan_end_block}")
                 if scan_end_block != current_block:
-                    print(f'Originally used {current_block} as end block')
+                    logger.info(f"Originally used {current_block} as end block")
                 requested, fulfilled = self.client.get_vrf_logs(scan_block, scan_end_block)
 
                 # If we saw fulfillments in the block, strip out matching requests for fulfillment.
@@ -79,7 +80,7 @@ class Fulfiller(object):
                 delay_block = scan_end_block - self.delay_blocks
                 pending_requested = [x for x in pending_requested if x['blockNumber'] <= delay_block]
 
-                print(f'fetched events: {len(requested)} / {len(fulfilled)} / {len(pending_requested)}')
+                logger.info(f"fetched events: {len(requested)} / {len(fulfilled)} / {len(pending_requested)}")
                 for pending in pending_requested:
                     self.fulfilled_ids.add(pending['args']['requestId'])
                     self.submit_fulfill_event(pending)
@@ -89,9 +90,9 @@ class Fulfiller(object):
 
             except Exception as e:
                 if 'Client Error' in str(e) and 'goerli.base' in str(e):
-                    print('suppressing spurious transient base testnet error')
+                    logger.info('suppressing spurious transient base testnet error')
                 elif 'after last accepted block' in str(e):
-                    print('suppressing spurious transient log fetch error')
+                    logger.info('suppressing spurious transient log fetch error')
                 else:
                     traceback.print_exc()
                     send_hook(self.alert_url, e)
