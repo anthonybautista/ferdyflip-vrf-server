@@ -3,6 +3,31 @@ from typing import Optional
 from web3 import Web3
 from web3.middleware.proof_of_authority import ExtraDataToPOAMiddleware
 
+import os
+from dotenv import dotenv_values
+
+# Load environment variables (same pattern as your Config class)
+_env_config = {
+    **dotenv_values('.env'),
+    **os.environ,  # override loaded values with environment variables
+}
+
+# Get Chainstack credentials from environment
+CHAINSTACK_USERNAME = _env_config.get('CHAINSTACK_USERNAME')
+CHAINSTACK_PASSWORD = _env_config.get('CHAINSTACK_PASSWORD')
+CHAINSTACK_HOSTNAME = _env_config.get('CHAINSTACK_HOSTNAME')
+
+
+# Build the Chainstack URL if all credentials are provided
+def _get_chainstack_rpc():
+    if CHAINSTACK_USERNAME and CHAINSTACK_PASSWORD and CHAINSTACK_HOSTNAME:
+        return f'https://{CHAINSTACK_USERNAME}:{CHAINSTACK_PASSWORD}@{CHAINSTACK_HOSTNAME}'
+    # Fallback to the original public RPC if credentials aren't set
+    return 'https://endpoints.omniatech.io/v1/avax/mainnet/public'
+
+
+CHAINSTACK_RPC = _get_chainstack_rpc()
+
 # Every supported chain needs a mapping from chain id to rpc endpoint.
 CHAIN_ID_TO_RPC = {
     # Base Mainnet
@@ -10,7 +35,7 @@ CHAIN_ID_TO_RPC = {
     # Base Testnet
     84531: 'https://goerli.base.org',
     # Avax Mainnet
-    43114: 'https://endpoints.omniatech.io/v1/avax/mainnet/public',
+    43114: CHAINSTACK_RPC,
     # Avax testnet
     43113: 'https://api.avax-test.network/ext/bc/C/rpc',
     # Mantle
@@ -28,7 +53,7 @@ CHAIN_ID_TO_RPC = {
 CHAIN_ID_TO_RPC_LIST = {
     # Avax Mainnet
     43114: [
-        'https://endpoints.omniatech.io/v1/avax/mainnet/public',
+        CHAINSTACK_RPC,
         'https://avax.meowrpc.com',
         'https://avalanche.drpc.org',
         'https://avalanche-c-chain-rpc.publicnode.com',
