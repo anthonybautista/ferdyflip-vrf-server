@@ -1,8 +1,18 @@
+import os
 from typing import Optional
 
+from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware.proof_of_authority import ExtraDataToPOAMiddleware
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Get Avalanche RPC URL from environment variable, with fallback to default
+AVAX_RPC_URL = os.getenv(
+    'AVAX_RPC_URL',
+    'https://api.avax.network/ext/bc/C/rpc'
+)
 
 # Every supported chain needs a mapping from chain id to rpc endpoint.
 CHAIN_ID_TO_RPC = {
@@ -11,7 +21,7 @@ CHAIN_ID_TO_RPC = {
     # Base Testnet
     84531: 'https://goerli.base.org',
     # Avax Mainnet
-    43114: 'https://avalanche-mainnet.core.chainstack.com/ext/bc/C/rpc/fe2bb134d89297b3ae4e84740bb9ec77',
+    43114: AVAX_RPC_URL,
     # Avax testnet
     43113: 'https://api.avax-test.network/ext/bc/C/rpc',
     # Mantle
@@ -29,7 +39,7 @@ CHAIN_ID_TO_RPC = {
 CHAIN_ID_TO_RPC_LIST = {
     # Avax Mainnet
     43114: [
-        'https://avalanche-mainnet.core.chainstack.com/ext/bc/C/rpc/fe2bb134d89297b3ae4e84740bb9ec77',
+        AVAX_RPC_URL,
         'https://avax.meowrpc.com',
         'https://avalanche.drpc.org',
         'https://avalanche-c-chain-rpc.publicnode.com',
